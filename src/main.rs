@@ -1,10 +1,10 @@
 use gtk::prelude::*;
 use yaml_rust::{YamlLoader,Yaml};
-use reqwest::Client;
+use reqwest::blocking::{Client};
+use reqwest::header::{HeaderMap, HeaderValue, HeaderName};
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::error::Error;
 
 struct Window {
     window: gtk::ApplicationWindow
@@ -15,9 +15,9 @@ fn get_token() -> String {
     let mut Str = String::new();
     conf.read_to_string(&mut Str).expect("file to read");
     let yaml = YamlLoader::load_from_str(&Str).unwrap();
-    let yaml = &yaml[0];
-    let token = yaml["token"].as_str().unwrap();
-    token.to_string()
+    let yaml = yaml[0].clone();
+    let token = yaml["token"].as_str().unwrap().to_string();
+    token
 }
 
 impl Window {
@@ -31,35 +31,37 @@ impl Window {
             .label("chuj")
             .build();
         window.set_child(Some(&but));
-        but.connect_clicked(move |_| {
-            println!("chuj");
+        but.connect_clicked(move |but| {
+            send(but.label().unwrap().to_string())
         });
         Self {
             window
         }
     }
 }
-async fn send(message: String) -> Result<(), Box<dyn Error>>{
+fn send(message: String) {
     let channel = "1292520084664746045";
-    println!("channel = {}", channel);
     let url = format!("https://discord.com/api/v9/channels/{}/messages",channel);
-    println!("url = {}", url);
-    let params = [("content", message)];
-    println!("params = {:?}", params);
+    /*let mut head = HeaderMap::new();
+    let token = HeaderValue::from_bytes(get_token().as_bytes());
+    let hd = HeaderName::from_static("Authorization");
+    head.insert("Authorization", token.expect("chuj"));
+    println!("{:?}", head);*/
     let client = Client::new();
-    let res = client
-        .post(url)
-        .form(&params)
+    let l = '{';
+    let r = '}';
+    println!("idzie");
+    let body = format!("{}\"content\": \"{}\"{}", l,message.clone(),r);
+    let res = client.post(url)
+        .body(body)
         .header("Authorization", get_token())
-        .send()
-        .await?;
-    if res.status().is_success() {
-        println!("success");
+        .send();
+    println!("OK, {:?}", res);
+    if let Ok(res) = res {
+        println!("OK, {:?}", res);
     } else {
-        let error = res.text().await?;
-        println!("Error: {}", error);
+        println!("err {:?}", res.err());
     }
-    Ok(())
 }
 
 fn on_activate(app: &gtk::Application) {
